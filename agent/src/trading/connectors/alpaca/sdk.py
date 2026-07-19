@@ -25,6 +25,7 @@ import hashlib
 import json
 import os
 from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import ModuleType
 from typing import Any, Mapping
@@ -390,6 +391,32 @@ def get_quote(symbol: str, *, config: AlpacaConfig | None = None, **_: Any) -> d
     }
 
 
+#: Seconds per bar for each canonical period token, used to size the lookback
+#: window below. Unknown tokens fall back to daily.
+_BAR_SECONDS = {
+    "1m": 60, "5m": 300, "15m": 900, "30m": 1800,
+    "1h": 3600, "4h": 14400, "1w": 7 * 86400, "1M": 30 * 86400,
+}
+
+
+def _bars_lookback_start(period: str, limit: int) -> datetime:
+    """Estimate a ``start`` timestamp far enough back to contain ``limit`` bars.
+
+    Alpaca's bars endpoint fills forward from ``start``; a request with only
+    ``limit`` and no ``start`` has no defined range to fill and returns nothing.
+    Intraday bars only exist within ~6.5h trading sessions on ~5 of 7 days, so
+    the calendar span needed is much longer than ``limit`` bars would suggest;
+    daily+ bars just need a weekend/holiday buffer.
+    """
+    bar_seconds = _BAR_SECONDS.get(period.strip(), 86400)
+    if bar_seconds < 86400:
+        calendar_seconds = limit * bar_seconds * (86400 / 23400) * (7 / 5)
+    else:
+        calendar_seconds = limit * bar_seconds * 1.6
+    calendar_seconds += 3 * 86400  # holiday/weekend safety margin
+    return datetime.now(timezone.utc) - timedelta(seconds=calendar_seconds)
+
+
 def get_historical_bars(
     symbol: str,
     *,
@@ -401,22 +428,35 @@ def get_historical_bars(
     """Fetch historical bars for ``symbol`` (``period`` is a canonical token)."""
     cfg = config or load_config()
     clean = symbol.strip().upper()
+    start = _bars_lookback_start(period, int(limit))
     if tap_forward.tap_enabled():
+        start_param = start.strftime("%Y-%m-%dT%H:%M:%SZ")
         url = (
             f"{DATA_HOST}/v2/stocks/{clean}/bars"
             f"?timeframe={_rest_timeframe(period)}&limit={int(limit)}&feed={cfg.feed}"
+            f"&start={start_param}&sort=desc"
         )
         payload = _read_via_tap(url)
         rows: Any = [_rename_keys(item, _BAR_KEY_ALIASES) for item in _as_iter(_obj_get(payload, "bars") or [])]
+        rows = list(reversed(rows))
     else:
         client = _data_client(cfg)
+        from alpaca.common.enums import Sort  # type: ignore
         from alpaca.data.requests import StockBarsRequest  # type: ignore
         from alpaca.data.timeframe import TimeFrame, TimeFrameUnit  # type: ignore
 
         timeframe = _timeframe(period, TimeFrame, TimeFrameUnit)
-        req = StockBarsRequest(symbol_or_symbols=clean, timeframe=timeframe, limit=int(limit), feed=_data_feed(cfg))
+        req = StockBarsRequest(
+            symbol_or_symbols=clean,
+            timeframe=timeframe,
+            limit=int(limit),
+            feed=_data_feed(cfg),
+            start=start,
+            sort=Sort.DESC,
+        )
         bars = client.get_stock_bars(req)
         rows = bars.data.get(clean, []) if hasattr(bars, "data") else _as_iter(bars)
+        rows = list(reversed(list(rows)))
     return {
         "status": "ok",
         "symbol": clean,

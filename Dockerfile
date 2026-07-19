@@ -40,7 +40,7 @@ RUN pip install --no-cache-dir --require-hashes -r requirements-lock.txt
 # re-creates the same /app/agent source tree the .pth file points at).
 COPY pyproject.toml LICENSE README.md ./
 COPY agent/ agent/
-RUN pip install --no-cache-dir -e .
+RUN pip install --no-cache-dir -e ".[alpaca]"
 
 # ============================================================================
 # Stage 3: Runtime — carries the prebuilt venv only, no compilers/dev headers.
