@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from collections import defaultdict
 from typing import Dict, List, Optional, Union
 
@@ -38,6 +39,18 @@ _INTERVAL_MAP = {
     "4H": "1h",
 }
 
+# Forex pairs (EUR/USD, GBP/USD, ...): Yahoo has no slash in its ticker, just
+# the two codes concatenated plus a trailing =X (e.g. EURUSD=X).
+_FOREX_PAIR_RE = re.compile(r"^([A-Z]{3})/([A-Z]{3})$")
+
+# Precious metals have no working forex-style ticker on Yahoo (XAUUSD=X /
+# XAGUSD=X both 404 on the public chart endpoint, verified directly). The
+# free, liquid proxy Yahoo does carry is the continuous COMEX futures
+# contract, which tracks spot within a few dollars -- close enough for
+# analysis/backtesting and the standard retail substitute when no paid spot
+# feed is available.
+_METAL_FUTURES_VS_USD = {"XAU": "GC=F", "XAG": "SI=F"}
+
 
 def _to_yfinance_symbol(code: str) -> str:
     """Convert project symbols into yfinance symbols.
@@ -60,6 +73,12 @@ def _to_yfinance_symbol(code: str) -> str:
         return upper[:-5] + "-USD"
     if upper.endswith("-USDC"):
         return upper[:-5] + "-USD"
+    forex_match = _FOREX_PAIR_RE.match(upper)
+    if forex_match:
+        base, quote = forex_match.groups()
+        if quote == "USD" and base in _METAL_FUTURES_VS_USD:
+            return _METAL_FUTURES_VS_USD[base]
+        return f"{base}{quote}=X"
     # India NSE/BSE (RELIANCE.NS, 500325.BO): yfinance carries the suffix as-is.
     return upper
 
@@ -211,10 +230,10 @@ def _normalize_frame(frame: pd.DataFrame, requested_interval: str) -> pd.DataFra
 
 @register
 class DataLoader:
-    """Fetch HK/US equity bars from Yahoo Finance via yfinance."""
+    """Fetch HK/US equity, crypto, and forex/metal bars from Yahoo Finance via yfinance."""
 
     name = "yfinance"
-    markets = {"us_equity", "hk_equity", "india_equity", "crypto"}
+    markets = {"us_equity", "hk_equity", "india_equity", "crypto", "forex"}
     requires_auth = False
 
     def is_available(self) -> bool:

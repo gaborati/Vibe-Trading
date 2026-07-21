@@ -78,12 +78,21 @@ class ForexEngine(BaseEngine):
         return True
 
     def round_size(self, raw_size: float, price: float) -> float:
-        """Round to micro-lot granularity (0.01 lots = 1000 units).
+        """Round down to micro-lot granularity (0.01 lots), derived from ``lot_size``.
 
-        Position size is in currency units (not lots) for PnL compatibility.
-        Round to nearest 1000 units (micro lot).
+        A micro lot is 1% of the configured ``lot_size``: 1000 units for the
+        default 100,000-unit standard forex lot (unchanged prior behavior).
+        Instruments quoted far from currency-pair scale -- e.g. XAU/USD at
+        ~$4,000/oz -- need a much smaller ``lot_size`` configured (a 100-oz
+        gold contract -> 1-unit granularity); with the old hardcoded 1000-unit
+        floor, any account under ~$4M would round every gold position to
+        zero. Position size stays in raw instrument units (not lots) for PnL
+        compatibility.
         """
-        return max(int(raw_size / 1000) * 1000, 0)
+        micro_lot = self.lot_size * 0.01
+        if micro_lot <= 0:
+            return max(raw_size, 0.0)
+        return max(int(raw_size / micro_lot) * micro_lot, 0.0)
 
     def calc_commission(self, size: float, price: float, _direction: int, is_open: bool) -> float:
         """Forex: spread is the cost, embedded in slippage. No explicit commission.

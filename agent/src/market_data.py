@@ -28,6 +28,11 @@ _SOURCE_PATTERNS = [
     (re.compile(r"^[A-Z0-9&.\-]+\.(NS|BO)$", re.I), "yahoo"),
     (re.compile(r"^[A-Z]+-USDT$", re.I), "okx"),
     (re.compile(r"^[A-Z]+/USDT$", re.I), "ccxt"),
+    # Forex / spot metals: XXX/YYY (EUR/USD, XAU/USD, XAG/USD, ...). Routed
+    # straight to yfinance — it maps these to Yahoo's XXXYYY=X convention and
+    # is the only registered forex source that serves intraday (1m/5m/1h)
+    # bars; akshare (daily-only) is available as an explicit fallback.
+    (re.compile(r"^[A-Z]{3}/[A-Z]{3}$", re.I), "yfinance"),
 ]
 
 

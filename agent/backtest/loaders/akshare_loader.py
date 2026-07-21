@@ -43,13 +43,24 @@ def _is_crypto(code: str) -> bool:
 
 
 
+def _forex_symbol(code: str) -> str:
+    """Normalize a project forex code to AKShare's bare 6-letter form.
+
+    Strips the project's ``.FX`` suffix and ``XXX/YYY`` slash so both
+    ``EURUSD``, ``EURUSD.FX`` and the canonical ``EUR/USD`` (incl. spot
+    metals like ``XAU/USD``) resolve to the same ``EURUSD``-style symbol.
+    """
+    return code.upper().removesuffix(".FX").replace("/", "")
+
+
 def _is_forex(code: str) -> bool:
     """Detect forex pairs by matching against AKShare's symbol_market_map.
 
     Issue #54 — forex symbols (EURUSD, GBPUSD, etc.) have no exchange suffix
-    and previously fell through to the A-share endpoint.
+    and previously fell through to the A-share endpoint. Also matches the
+    project's canonical slash form (EUR/USD, XAU/USD).
     """
-    upper = code.upper().removesuffix(".FX")
+    upper = _forex_symbol(code)
     try:
         from akshare.forex.cons import symbol_market_map
     except Exception:
@@ -198,7 +209,7 @@ class DataLoader:
         — note ``最新价`` (latest) plays the role of close. Volume isn't reported,
         so we synthesize a zero column to satisfy the OHLCV contract.
         """
-        symbol = code.upper().removesuffix(".FX")
+        symbol = _forex_symbol(code)
         df = ak.forex_hist_em(symbol=symbol)
         if df is None or df.empty:
             return None

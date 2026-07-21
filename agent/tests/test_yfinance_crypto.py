@@ -38,6 +38,20 @@ class TestToYfinanceSymbolCrypto:
     def test_whitespace_stripped(self) -> None:
         assert _to_yfinance_symbol("  BTC-USDT  ") == "BTC-USD"
 
+    def test_gold_forex_pair_converted_to_comex_future(self) -> None:
+        # XAUUSD=X 404s on Yahoo (verified against the live chart endpoint);
+        # GC=F (continuous COMEX gold future) is the real, liquid proxy.
+        assert _to_yfinance_symbol("XAU/USD") == "GC=F"
+
+    def test_silver_forex_pair_converted_to_comex_future(self) -> None:
+        assert _to_yfinance_symbol("XAG/USD") == "SI=F"
+
+    def test_currency_pair_converted(self) -> None:
+        assert _to_yfinance_symbol("EUR/USD") == "EURUSD=X"
+
+    def test_forex_pair_lowercase_normalized(self) -> None:
+        assert _to_yfinance_symbol("xau/usd") == "GC=F"
+
 
 # ---------------------------------------------------------------------------
 # DataLoader — crypto market registration

@@ -63,6 +63,11 @@ class TestIsForex:
     def test_fx_suffix_matches(self) -> None:
         assert _is_forex("EURUSD.FX")
 
+    def test_canonical_slash_form_matches(self) -> None:
+        # EUR/USD is the project's documented forex symbol convention
+        # (data-routing skill); it must resolve the same as bare EURUSD.
+        assert _is_forex("EUR/USD")
+
     def test_a_share_does_not_match(self) -> None:
         assert not _is_forex("600519.SH")
 
@@ -159,6 +164,11 @@ class TestRouting:
     def test_forex_strips_fx_suffix(self, fake_akshare: SimpleNamespace) -> None:
         loader = DataLoader()
         loader._fetch_one("EURUSD.FX", "2024-01-01", "2024-12-31", "1D")
+        fake_akshare.forex_hist_em.assert_called_once_with(symbol="EURUSD")
+
+    def test_forex_strips_canonical_slash(self, fake_akshare: SimpleNamespace) -> None:
+        loader = DataLoader()
+        loader._fetch_one("EUR/USD", "2024-01-01", "2024-12-31", "1D")
         fake_akshare.forex_hist_em.assert_called_once_with(symbol="EURUSD")
 
     def test_a_share_still_routes_to_stock_zh_a_hist(

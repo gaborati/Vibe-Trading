@@ -97,7 +97,15 @@ same-market sources automatically. Only set a concrete source when the user asks
   sina / eastmoney (throttled) > yfinance.
 - **HK stocks**: tencent > eastmoney / yahoo > yfinance.
 - **Crypto**: okx (single exchange) > ccxt (multi-exchange).
-- **Futures / macro / forex**: tushare > akshare.
+- **Futures / macro**: tushare > akshare.
+- **Forex / spot metals** (`XXX/YYY`, e.g. `EUR/USD`, `XAU/USD`): `get_market_data`
+  auto-routes to **yfinance** — the only registered forex source with intraday
+  bars (`1m`/`5m`/`15m`/`1h`), needed for daytrading. akshare is the daily-only
+  fallback (`forex_hist_em`, free, no key). True currency pairs map to Yahoo's
+  `XXXYYY=X` convention (`EUR/USD` -> `EURUSD=X`); gold/silver have no working
+  spot ticker on Yahoo, so `XAU/USD` -> `GC=F` and `XAG/USD` -> `SI=F` (continuous
+  COMEX futures — tracks spot within a few dollars, the standard free proxy).
+  Use the slash form everywhere; the loader handles the conversion.
 
 ## Symbol Format Reference
 
@@ -108,7 +116,7 @@ same-market sources automatically. Only set a concrete source when the user asks
 | HK stocks | `NNNNN.HK` | 00700.HK, 09988.HK |
 | Crypto | `SYMBOL-USDT` | BTC-USDT, ETH-USDT |
 | Futures | `XXNNNN.EXCHANGE` | CU2406.SHFE |
-| Forex | `XXX/YYY` | USD/CNY, EUR/USD |
+| Forex / spot metals | `XXX/YYY` | USD/CNY, EUR/USD, XAU/USD, XAG/USD |
 
 ## Ban-Risk & Fallback Notes
 

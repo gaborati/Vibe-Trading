@@ -510,7 +510,7 @@ def run_options_backtest(
     out.mkdir(parents=True, exist_ok=True)
 
     for code, df in data_map.items():
-        df.to_csv(out / f"ohlcv_{code}.csv")
+        df.to_csv(out / f"ohlcv_{code.replace('/', '-')}.csv")
 
     equity_df.to_csv(out / "equity.csv", index=False)
 

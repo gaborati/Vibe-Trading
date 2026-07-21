@@ -36,6 +36,7 @@ For minute-level backtests, simply add the `interval` field in `config.json`:
 | OKX | 1m/5m/15m/30m/1H/4H | Cryptocurrency, trades 7x24 |
 | Tushare | 1m/5m/15m/30m/1H | China A-shares, requires score >= 2000 |
 | yfinance | 1m/5m/15m/30m/1H | Hong Kong / US equities (free, no key required) |
+| yfinance | 1m/5m/15m/30m/1H | Forex & spot metals (`XXX/YYY`, e.g. `EUR/USD`, `XAU/USD`) — free, no key. This is the source `get_market_data`/`auto` routes to for daytrading gold; akshare only offers daily bars for forex. |
 
 ## OKX Minute Candlestick API
 

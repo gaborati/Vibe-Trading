@@ -918,9 +918,10 @@ class BaseEngine(ABC):
         out = run_dir / "artifacts"
         out.mkdir(parents=True, exist_ok=True)
 
-        # OHLCV per symbol
+        # OHLCV per symbol. Forex codes carry a slash (XAU/USD) which pathlib
+        # would otherwise split into a directory component, so sanitize it.
         for code, df in data_map.items():
-            df.to_csv(out / f"ohlcv_{code}.csv")
+            df.to_csv(out / f"ohlcv_{code.replace('/', '-')}.csv")
 
         # Equity curve
         port_ret = equity_series.pct_change().fillna(0.0)

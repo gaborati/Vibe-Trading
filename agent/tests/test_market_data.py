@@ -46,6 +46,9 @@ from src.market_data import (
         ("500325.BO", "yahoo"),  # India BSE (numeric scrip code)
         ("BTC-USDT", "okx"),
         ("ETH/USDT", "ccxt"),
+        ("XAU/USD", "yfinance"),  # spot gold — daytrading needs intraday bars
+        ("EUR/USD", "yfinance"),
+        ("xau/usd", "yfinance"),  # case-insensitive
         ("local:my_file", "local"),
         ("something_weird", "tushare"),  # documented fallback
     ],
