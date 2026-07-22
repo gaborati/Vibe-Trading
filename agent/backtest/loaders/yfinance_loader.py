@@ -96,6 +96,44 @@ def _to_yfinance_interval(interval: str) -> str:
     return _INTERVAL_MAP.get(normalized, normalized.lower())
 
 
+# Yahoo's intraday history windows are hard server-side caps applied
+# all-or-nothing: a request whose start predates the cutoff is rejected in
+# full (no bars at all), not truncated to the allowed portion. A 1-day safety
+# margin absorbs timezone/rounding at the exact boundary -- observed directly:
+# a request for exactly 60 days back was rejected with "must be within the
+# last 60 days".
+_MAX_LOOKBACK_DAYS = {
+    "1m": 7,
+    "2m": 60,
+    "5m": 60,
+    "15m": 60,
+    "30m": 60,
+    "90m": 60,
+    "60m": 730,
+    "1h": 730,
+}
+_LOOKBACK_SAFETY_MARGIN_DAYS = 1
+
+
+def _clamp_start_date(start_date: str, end_date: str, yf_interval: str) -> str:
+    """Pull *start_date* forward to Yahoo's intraday lookback cap when needed.
+
+    Silently narrowing the window here trades a bit of history for a request
+    that actually succeeds, instead of failing the whole fetch over a window
+    that is only marginally too wide.
+    """
+    max_days = _MAX_LOOKBACK_DAYS.get(yf_interval)
+    if max_days is None:
+        return start_date
+    earliest = pd.Timestamp(end_date).normalize() - pd.Timedelta(
+        days=max_days - _LOOKBACK_SAFETY_MARGIN_DAYS
+    )
+    requested = pd.Timestamp(start_date).normalize()
+    if requested < earliest:
+        return earliest.strftime("%Y-%m-%d")
+    return start_date
+
+
 def _to_yfinance_exclusive_end(end_date: str) -> str:
     """Convert the project-inclusive end date to yfinance's exclusive end."""
     return (pd.Timestamp(end_date).normalize() + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
@@ -275,6 +313,14 @@ class DataLoader:
 
         requested_interval = str(interval or "1D").strip()
         yf_interval = _to_yfinance_interval(requested_interval)
+        clamped_start = _clamp_start_date(start_date, end_date, yf_interval)
+        if clamped_start != start_date:
+            logger.warning(
+                "yfinance: narrowing start_date %s -> %s for interval %s "
+                "(Yahoo intraday lookback cap)",
+                start_date, clamped_start, yf_interval,
+            )
+        start_date = clamped_start
         yf_end_date = _to_yfinance_exclusive_end(end_date)
 
         symbol_groups: Dict[str, List[str]] = defaultdict(list)

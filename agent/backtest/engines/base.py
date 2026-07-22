@@ -821,7 +821,19 @@ class BaseEngine(ABC):
             return None
         price = self.apply_slippage(open_price, direction)
         leverage = self._leverage_for_symbol(symbol)
-        target_notional = abs(target_weight) * equity * leverage
+        # Position sizing normally scales with live equity, which compounds:
+        # a run of early wins inflates every later trade's notional, letting
+        # a handful of trades that happened to land after the account had
+        # already grown dominate the total P&L. Sizing off initial_capital
+        # instead keeps every trade's risk uniform, matching how a
+        # disciplined small-account trader actually sizes positions (a fixed
+        # lot per the stop-loss risk calc, not a growing one).
+        sizing_base = (
+            self.initial_capital
+            if self.config.get("fixed_position_sizing")
+            else equity
+        )
+        target_notional = abs(target_weight) * sizing_base * leverage
         size = self.round_size(
             self._calc_raw_size(symbol, target_notional, price), price
         )
