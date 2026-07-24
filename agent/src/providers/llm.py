@@ -646,6 +646,14 @@ def build_llm(*, model_name: Optional[str] = None, callbacks: Any = None) -> Any
     # model"), so omit it instead of sending the configured default.
     if provider != "anthropic":
         kwargs["temperature"] = temperature
+    # OpenAI's gpt-5.x reasoning-tier models (e.g. gpt-5.6-terra) default to
+    # a non-"none" reasoning_effort server-side, which /v1/chat/completions
+    # rejects once function tools are attached ("Function tools with
+    # reasoning_effort are not supported... set reasoning_effort to 'none'").
+    # This project always calls chat completions (not /v1/responses), so
+    # force it off explicitly.
+    if provider == "openai" and name.lower().startswith("gpt-5"):
+        kwargs["reasoning_effort"] = "none"
     if caps.default_headers:
         headers = dict(caps.default_headers)
         if caps.name in {"moonshot", "kimi-coding"}:
