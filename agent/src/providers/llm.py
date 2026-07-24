@@ -635,13 +635,17 @@ def build_llm(*, model_name: Optional[str] = None, callbacks: Any = None) -> Any
     effort = get_env_config().llm.langchain_reasoning_effort.strip().lower()
     kwargs: dict[str, Any] = {
         "model": name,
-        "temperature": temperature,
         "timeout": get_env_config().llm.timeout_seconds,
         "max_retries": get_env_config().llm.max_retries,
         "callbacks": callbacks,
         "extra_body": {"reasoning": {"effort": effort}} if effort and caps.openrouter_reasoning_body else None,
         "vibe_provider": provider,
     }
+    # Anthropic's OpenAI-compatible endpoint rejects the temperature field
+    # outright for Claude models ("temperature is deprecated for this
+    # model"), so omit it instead of sending the configured default.
+    if provider != "anthropic":
+        kwargs["temperature"] = temperature
     if caps.default_headers:
         headers = dict(caps.default_headers)
         if caps.name in {"moonshot", "kimi-coding"}:

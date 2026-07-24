@@ -104,8 +104,18 @@ _ZHIPU_CAPABILITIES = ProviderCapabilities(
 _OPENAI_CODEX_CAPABILITIES = ProviderCapabilities("openai-codex", None, "OPENAI_CODEX_BASE_URL")
 
 
+_ANTHROPIC_CAPABILITIES = ProviderCapabilities(
+    "anthropic",
+    "ANTHROPIC_API_KEY",
+    "ANTHROPIC_BASE_URL",
+    default_headers={"User-Agent": _VIBE_USER_AGENT},
+)
+
+
 _PROVIDERS: dict[str, ProviderCapabilities] = {
     "openai": ProviderCapabilities("openai", "OPENAI_API_KEY", "OPENAI_BASE_URL"),
+    "anthropic": _ANTHROPIC_CAPABILITIES,
+    "claude": _ANTHROPIC_CAPABILITIES,
     "openrouter": ProviderCapabilities(
         "openrouter",
         "OPENROUTER_API_KEY",

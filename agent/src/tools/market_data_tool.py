@@ -37,6 +37,7 @@ class MarketDataTool(BaseTool):
                 "type": "string",
                 "enum": [
                     "auto",
+                    "local",
                     "longbridge",
                     "yfinance",
                     "yahoo",
@@ -57,6 +58,11 @@ class MarketDataTool(BaseTool):
                 ],
                 "description": (
                     "Data source. 'auto' detects from symbol format with fallback. "
+                    "Use 'local' to read from the user's locally configured data "
+                    "bridge (~/.vibe-trading/data-bridge/config.yaml), e.g. a "
+                    "broker/MT4-exported CSV for a symbol like XAU/USD -- the most "
+                    "accurate source when the user has one configured, since it is "
+                    "their own live broker feed rather than a proxy. "
                     "Use 'longbridge' explicitly for US/HK OHLCV through the "
                     "Longbridge OpenAPI (requires Longbridge credentials). "
                     "Free, no key: yfinance/yahoo (US/HK equities), okx/ccxt "

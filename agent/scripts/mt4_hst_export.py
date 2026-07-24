@@ -22,11 +22,23 @@ from __future__ import annotations
 import csv
 import struct
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 _HEADER_SIZE = 148
 _RECORD_SIZE_V400 = 44
+
+# MT4 stores each bar's ctm using the broker server's own clock, not true
+# UTC. Verified empirically on 2026-07-22 (CEST/UTC+2): rendering ctm with
+# tz=utc produced values exactly 2 hours ahead of real UTC "now". Subtracting
+# this offset before labeling the output "UTC" gives callers (including the
+# LLM agent, which otherwise mis-converted and drifted by ~2-3 hours across
+# a session) a value that is actually correct UTC, not just UTC-labeled
+# broker time. This is a fixed offset, not DST-aware -- MetaQuotes-Demo's
+# server clock may or may not shift with European DST; re-verify (compare a
+# fresh export's last bar against `date -u`) if this drifts again, especially
+# around DST transitions (late March / late October).
+_BROKER_SERVER_UTC_OFFSET = timedelta(hours=2)
 _RECORD_SIZE_V401 = 60
 
 
@@ -74,7 +86,9 @@ def convert(hst_path: Path, csv_path: Path) -> int:
         writer = csv.writer(f)
         writer.writerow(["date", "open", "high", "low", "close", "volume"])
         for ctm, o, h, low, c, vol in records:
-            ts = datetime.fromtimestamp(ctm, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+            broker_time = datetime.fromtimestamp(ctm, tz=timezone.utc)
+            true_utc = broker_time - _BROKER_SERVER_UTC_OFFSET
+            ts = true_utc.strftime("%Y-%m-%d %H:%M:%S")
             writer.writerow([ts, o, h, low, c, vol])
 
     print(f"{symbol} period={period}m version={version}: wrote {len(records)} bars -> {csv_path}")
